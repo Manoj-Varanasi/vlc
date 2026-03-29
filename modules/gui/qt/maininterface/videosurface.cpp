@@ -20,7 +20,7 @@
 #include <QSGRectangleNode>
 #include <QThreadPool>
 #include <vlc_window.h>
-
+#include <algorithm>
 #include <QQuickRenderControl>
 #ifdef QT_DECLARATIVE_PRIVATE
 #  include <QtGui/qpa/qplatformwindow.h>
@@ -208,14 +208,40 @@ static bool isBoosting = false;
 static int triggerKey = Qt::Key_Shift;
 static float boostRate = 2.0;
 
-void VideoSurface::keyPressEvent(QKeyEvent* event)
+void VideoSurface::keyPressEvent(QKeyEvent * event)
 {
+    int key = event->key();
+    int digit = -1;
 
-    if (!isBoosting && event->key() == triggerKey) {
+    if (key >= Qt::Key_0 && key <= Qt::Key_9)
+    {
+        digit = key - Qt::Key_0;
+    }
+
+    if (digit != -1)
+    {
+        float pos = digit / 10.0f;
+
+        if (!this->p_intf || !this->p_intf->p_playerController)
+            return;
+
+        auto player = this->p_intf->p_playerController;
+
+        if (player->getLength() <= 0 || !player->canSeek())
+            return;
+
+        pos = std::max(0.0f, std::min(pos, 1.0f));
+
+        player->setPosition(pos);
+        return;
+    }
+
+    if (!isBoosting && key == triggerKey) {
         prev_rate = this->p_intf->p_playerController->getRate();
         this->p_intf->p_playerController->setRate(boostRate);
         isBoosting = true;
     }
+
     QWidget::keyPressEvent(event);
 }
 
